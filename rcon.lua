@@ -1,4 +1,6 @@
---[[ Source2 RCON in Lua by mikma, 2016 - http://www.kinky.fi - mikko.majuri@gmail.com
+--[[
+
+ Source2 RCON in Lua by mikma, 2016 - http://www.kinky.fi - mikko.majuri@gmail.com
 
  https://developer.valvesoftware.com/wiki/Source_RCON_Protocol
  
@@ -6,7 +8,9 @@
    Step 1) Lua 5.3 - https://www.lua.org/download.html - Lower versions won't work because 'string.pack' is a Lua 5.3 function.
    Step 2) LuaRocks - https://luarocks.org/#quick-start - We use this to download and compile next requirement.
    Step 3) LuaSocket 3.0-rc1 - Comes with LuaRocks and gets compiled to work with Lua 5.3. Lower precompiled version won't work.
-   Step 4) Create config.lua and add+edit the following: config = { password = 'myrconpassword', host = '127.0.0.1', port = '27015', }  ]]
+   Step 4) Create config.lua and add+edit the following: config = { password = 'myrconpassword', host = '127.0.0.1', port = '27015', }
+
+]]
 
 -- Step 1) Lua version check, string.pack is a Lua 5.3 function
 if _VERSION:sub(5) < "5.3" then

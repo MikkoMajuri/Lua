@@ -39,7 +39,7 @@ local bot, extension = require("lua-bot-api").configure(token)
 -- 
 local function logprint(name,msg,id)
 	local admin = " "
-	if admins[id] then
+	if admins[id] then -- Tag id as Admin
 		admin = " Admin "
 	end
 	io.write(os.date("%x %X") .. admin .. name .. ": " .. msg .."\n")
@@ -55,7 +55,7 @@ extension.onTextReceive = function (msg)
 	else
 		if admins[msg.from.id] then
 			local command = msg.text:match("!(%S*)") -- check text after '!"
-			if commands[command] then -- is 'command' in the allwed list ?
+			if commands[command] then -- is 'command' in the allowed config.commands list ?
 				local n = os.tmpname () -- get a temporary file name
 				os.execute (msg.text:sub(2) .. " > ".. n) -- remove ! from msg.text, execute a command
 				local temptext = ""
