@@ -1,4 +1,24 @@
---[[ TheKinkyBot in Telegram - by mikma 2016, http://www.kinky.fi, mikko.majuri@gmail.com ]]
+--[[
+
+TheKinkyBot in Telegram - by mikma 2016, http://www.kinky.fi, mikko.majuri@gmail.com
+
+What config.lua must contain:
+config = {
+        admins = {
+                [123456789] = "Adminname", -- Can also be 'true', just to keep track of names
+        },
+        groups = {
+                [-234567891] = "Group nr. 1", -- Can also be 'true', just to keep track of names
+                [-345678912] = "Group nr. 2", -- Can also be 'true', just to keep track of names
+        },
+        commands = {
+                ["figlet"] = true,
+                ["uptime"] = true,
+        },
+        token = "456789123:ABCdefgHIjKlmn_aBcD1_e2Fgh3iJ45KlMN",
+}
+
+]]
 
 -- debug purposes - https://github.com/kikito/inspect.lua.git
 local inspect = require('inspect')
