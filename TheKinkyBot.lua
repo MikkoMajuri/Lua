@@ -153,20 +153,20 @@ end
 
 -- override onPhotoReceive as well
 extension.onPhotoReceive = function (msg)
-	-- The following script will check pictures from two id's, does a random 1-10, if 5 = prints a random emoji from table.
+	-- The following script will check sent pictures, does a random 1-10, if 5 = prints a random emoji from table.
 	if not admins[msg.from.id] then
-		math.randomseed( os.time() )
+		math.randomseed(os.time()) -- new random seed every time
 		local random = math.random(1,10)
 		if random == 5 then -- random 5 from 1-10
 			local from = getName(msg.from.username,msg.from.first_name,msg.from.id)
+			math.randomseed(os.time())
                         local randomemoji = math.random(1,#emojitable)
                         bot.sendMessage(msg.chat.id, emojitable[randomemoji])
                         logprint(from,"<- Random emoji replied to picture") -- Log into console with time
 		end
 	end
-
 	
-	local tempdate = os.date("%d/%m/%Y klo %X")
+	local tempdate = os.date("%d/%m/%Y klo %X") -- "dd/mm/yy klo xx.zz"
 	local tempseen = os.time() -- we use this to eliminate old, OLD pictures (set the time to a month or so?)
 	local temp_id = msg.photo[#msg.photo].file_id -- last picture is always the largest
 	local tempfile = bot.downloadFile(temp_id,"downloads/") -- download the image
