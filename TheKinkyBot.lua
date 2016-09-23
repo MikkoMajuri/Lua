@@ -20,8 +20,14 @@ config = {
 
 ]]
 
+-- file check
+local md5 = require("md5")
 -- debug purposes - https://github.com/kikito/inspect.lua.git
 local inspect = require('inspect')
+-- table in file load and save handled
+local JSON = require('JSON')
+
+dofile("persistence.lua") -- lua table handle, save & load
 
 dofile("config.lua")
 
@@ -44,24 +50,66 @@ local function logprint(name,msg,id)
 	if admins[id] then
 		admin = " Admin "
 	end
-	local logtext = os.date("%x %X") .. admin .. name .. ": " .. msg .."\n"
+	local logtext = os.date("%d/%m/%Y %X") .. admin .. name .. ": " .. msg .."\n"
 	io.write(logtext) -- print in console
 	local log = io.open("log.txt","a+") -- open log.txt
 	log:write(logtext) -- write in log.txt
 	log:close()
 end
 
+local function getName(username,first_name,id)
+	local from
+	if username then -- user has username set?
+		from = username -- Yes, use it.
+	elseif not username then -- User does NOT have username?
+		from = first_name -- Use first name.
+	elseif not first_name then -- User does NOT have first name?
+		from = id -- Use his ID.
+	end
+	return from
+end
+
+local function md5_file(filename)
+	local f = io.open(filename)
+	if f then
+		local txt = f:read('*all')
+		f:close()
+		return md5.sumhexa(txt)
+	end
+end
+
+-- A random number, guaranteed! ... return 7.
+local function random(min,max)
+	math.randomseed( os.time() )
+	return math.random(min,max)
+end
+
+-- Load some data in a global table for the bot to use.
+Kinky = {}
+Kinky.users = persistence.load("users.lua")
+if not Kinky.users then
+	Kinky.users = {}
+end
+Kinky.pictures = persistence.load("picturecache.lua")
+if not Kinky.pictures then
+	Kinky.pictures = {}
+end
+
+Kinky.cachetime = os.time()
+local delay = 0
+
+print("TheKinkyBot by mikma - Started at "..os.date())
+
 -- override onMessageReceive function
-extension.onTextReceive = function (msg)
-	local log = false
+extension.onTextReceive = function(msg)
 	if msg.text == "/start" then
  		bot.sendMessage(msg.from.id, "Hello there 👋\nMy name is " .. bot.first_name)
 	elseif msg.text == "ping" then
-		bot.sendMessage(msg.chat.id, "pong!")
+		bot.sendMessage(msg.from.id, "pong!")
 	else
 		if admins[msg.from.id] then
 			local command = msg.text:match("!(%S*)") -- check text after '!"
-			if commands[command] then -- is 'command' in the allwed list ?
+			if commands[command] then -- is 'command' in the allowed list ?
 				local n = os.tmpname() -- get a temporary file name
 				os.execute (msg.text:sub(2) .. " > ".. n) -- remove ! from msg.text, execute a command
 				local temptext = ""
@@ -76,34 +124,77 @@ extension.onTextReceive = function (msg)
 			end
 		end
 	end
-
+	if string.match(msg.text,"[Hh]eimopäällik") or string.match(msg.text,"[Kk]uppikunt") then
+		if os.time() >= Kinky.cachetime+delay then
+			delay = random(1800,7200)
+			logprint("Kinky","TRIGGERED! Delay set to "..os.date("!%X",delay))
+			bot.sendPhoto(msg.chat.id, "triggered.jpg","TRIGGERED!")
+			Kinky.cachetime = os.time()
+		end
+	end
 	-- predefined group goodness goes here
 	if groups[msg.chat.id] then
 		-- Nothing to see here now
-	end		
+	end
+	
+	local newperson = true
+	for k,v in pairs(Kinky.users) do
+		if k == msg.from.id then
+			newperson = false
+		end
+	end
+	if newperson then
+		local from = getName(msg.from.username,msg.from.first_name,msg.from.id)
+		logprint(from,"Added to users.lua")
+		Kinky.users[msg.from.id] = msg.from
+		persistence.store("users.lua",Kinky.users)
+	end
 end
 
 -- override onPhotoReceive as well
 extension.onPhotoReceive = function (msg)
 	-- The following script will check pictures from two id's, does a random 1-10, if 5 = prints a random emoji from table.
-	if msg.from.id == 205271900 or msg.from.id == 241962837 then
+	if not admins[msg.from.id] then
 		math.randomseed( os.time() )
-		local random = math.random(1,7)
+		local random = math.random(1,10)
 		if random == 5 then -- random 5 from 1-10
-			local from
-			if msg.from.username then -- user has username set?
-				from = msg.from.username -- Yes, use it.
-			elseif not msg.from.username then -- User does NOT have username?
-				from = msg.from.first_name -- Use first name.
-			elseif not msg.from.first_name then -- User does NOT have first name?
-				from = msg.from.id -- Use his ID.
-			end
-			--print(msg.chat.id .." <- Random emoji replied to picture")
+			local from = getName(msg.from.username,msg.from.first_name,msg.from.id)
                         local randomemoji = math.random(1,#emojitable)
                         bot.sendMessage(msg.chat.id, emojitable[randomemoji])
-                        logprint(from," <- Random emoji replied to picture") -- Log into console with time
+                        logprint(from,"<- Random emoji replied to picture") -- Log into console with time
 		end
 	end
+
+	
+	local tempdate = os.date("%d/%m/%Y klo %X")
+	local tempseen = os.time() -- we use this to eliminate old, OLD pictures (set the time to a month or so?)
+	local temp_id = msg.photo[#msg.photo].file_id -- last picture is always the largest
+	local tempfile = bot.downloadFile(temp_id,"downloads/") -- download the image
+	local _,b = tempfile.file.file_path:match("([^,]+)/([^,]+)") -- chop the filename from "photo/xxx.yyy" into "xxx.yyy"
+	local md5 = md5_file("downloads/"..b) -- get hex32 checksum of the file
+	local edit = false
+	if Kinky.pictures[md5] then
+		local v = Kinky.pictures[md5]
+		local from = getName(msg.from.username,msg.from.first_name,msg.from.id)
+		local prevdate = v.last -- get the previous date before we overwrite it
+		logprint(from,"EDIT! " .. md5 .. " | last: " .. prevdate .." | count: ".. v.count+1)
+		v.last = tempdate -- now we can write the new date down
+		v.seen = tempseen
+		v.count = v.count+1
+		edit = true -- skip the first time creation
+		if v.count >= 3 then -- seen more than 3 times? Announce.
+			bot.sendMessage(msg.chat.id, "Nähty jo " .. v.count .." kertaa.\nViimeksi: " .. prevdate, "Markdown")
+		end
+	end
+	if not edit then -- New photo, check the checksum and write it down in table
+		local from = getName(msg.from.username,msg.from.first_name,msg.from.id)
+		logprint(from,"New photo " .. md5)
+		Kinky.pictures[md5] = {["md5"] = md5, ["last"] = tempdate, ["seen"] = tempseen, ["count"] = 1,}
+	end
+	
+	persistence.store("picturecache.lua",Kinky.pictures) -- save table to picturecache.lua
+	os.remove("downloads/"..b) -- remove the downloaded file
+		
 end
 
 extension.onStickerReceive = function (msg)
@@ -120,6 +211,7 @@ extension.onStickerReceive = function (msg)
 	end
 	]]
 end
+
 
 -- This runs the internal update and callback handler
 -- you can even override run()
